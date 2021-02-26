@@ -12,43 +12,21 @@ public class PlayerController : MonoBehaviour {
 
 	public void Move(Vector2 direction){
 		Vector3 adjustedGroundVector = Vector3.left;
-		Vector3 v = Vector3.Cross(_groundNormal,Vector3.Cross(Vector3.up,_groundNormal));
+		Vector3 normalCrossUp = Vector3.Cross(Vector3.up,_groundNormal).normalized;
+		Vector3 slopeDirection = Vector3.Cross(_groundNormal,normalCrossUp).normalized;
 
-		// adjustedGroundVector.x *= direction.x;
-		// adjustedGroundVector.z *= direction.y;
-		// if(_groundNormal != Vector3.up){
-		// 	Vector3 upNormalCross = ;
-		// 	adjustedGroundVector =
-		// }
-		Debug.DrawRay(transform.position, v.normalized, Color.red);
-		//float f = ;
-		if(v != Vector3.up){
-			int i = 0;
+		Vector3 adjustedMoveVec = Vector3.zero;
+		if(direction.x != 0 || direction.y != 0){
+			if(_groundNormal.x == 0 && _groundNormal.z == 0f){
+				adjustedMoveVec = new Vector3(direction.x, 0f, direction.y);
+			}else{
+				float theata = Vector2.SignedAngle(direction, new Vector2(slopeDirection.x,slopeDirection.z))+90;
+				Quaternion q = Quaternion.AngleAxis(theata, _groundNormal);
+				adjustedMoveVec = q * normalCrossUp;
+			}
 		}
-		var f1 = Mathf.Rad2Deg*Mathf.Atan2(v.y, v.x);
-		var f2 = Mathf.Rad2Deg*Mathf.Atan2(v.y, v.z);
-		Quaternion q1 = Quaternion.identity;
-		Quaternion q2 = Quaternion.identity;
-		Vector3 v3;
-		if(v.x < 0){
-			if(f1 != 90)
-				q1 = Quaternion.Euler(0f,0f,f1);
-			if(f2 != 90)
-				q2 = Quaternion.Euler(-f2,0f,0f);
-		}else{
-			if(f1 != 90)
-				q1 = Quaternion.Euler(0f,0f,f1);
-			if(f2 != 90)
-				q2 = Quaternion.Euler(-f2,0f,0f);
-		}
-		v3 = q2 * (q1  * new Vector3(direction.x, 0, direction.y));
-		/*}else{
-			q1 = Quaternion.Euler(-f1,0f,0f);
-			q2 = Quaternion.Euler(0f,0f,f2);
-			v3 = q2 * q1 *  new Vector3(direction.x, 0, direction.y);
-		}*/
-		Debug.DrawRay(transform.position, v3, Color.green);
-		_rigidBody.AddForce(v3*20f);// new Vector3(-adjustedGroundVector.y, adjustedGroundVector.x, adjustedGroundVector.z)*100f;
+		//Debug.DrawRay(transform.position, adjustedMoveVec, Color.cyan);
+		_rigidBody.AddForce(adjustedMoveVec*20f);
 	}
 
 	private Vector2 _moveVec = new Vector2();
@@ -82,12 +60,17 @@ public class PlayerController : MonoBehaviour {
 	private void OnCollisionEnter(Collision other) {
 		foreach(ContactPoint contactPoint in other.contacts){
 			float f = Vector3.Angle(contactPoint.normal, Vector3.up);
-			if(f <= MaxSlope && f >= -MaxSlope){
+			if(f <= MaxSlope){
 				_groundNormal = contactPoint.normal;
 				_groundingObjects.Add(other.gameObject);
 				Debug.Log($"new normal {f}");
 				break;
+			}else if(f <= 360 - MaxSlope){
+				Debug.Log($"wall normal? {f}");
+			}else{
+				Debug.Log($"celing normal? {f}");
 			}
+
 		}
 	}
 
@@ -98,11 +81,19 @@ public class PlayerController : MonoBehaviour {
 			bool isGood = false;
 			foreach(ContactPoint contactPoint in other.contacts){
 				float f = Vector3.Angle(contactPoint.normal, Vector3.up);
-				if(f <= MaxSlope && f >= -MaxSlope){
+
+
+				if(f <= MaxSlope){
+
+
+					// is floor
 					_groundNormal = contactPoint.normal;
 					_groundingObjects.Add(other.gameObject);
 					isGood = true;
 					break;
+				}else{
+					// is wall or celing
+					//_groundingObjects
 				}
 			}
 			if(!isGood){
@@ -113,6 +104,7 @@ public class PlayerController : MonoBehaviour {
 	}
 
 	private HashSet<GameObject> _groundingObjects = new HashSet<GameObject>();
+	private HashSet<GameObject> _wallObjects = new HashSet<GameObject>();
 
 	private void OnCollisionExit(Collision other) {
 		_groundingObjects.Remove(other.gameObject);
